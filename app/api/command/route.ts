@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { query } from "@/lib/db";
 
 // In-memory rate limiting
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -7,7 +7,6 @@ const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 
 function hashIP(ip: string): string {
-  // Simple hash for rate limiting key — full SHA-256 is used for DB storage
   const encoder = new TextEncoder();
   const data = encoder.encode(ip + "obliq-salt");
   let hash = 0;
@@ -76,11 +75,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Lookup command
-    const result = await db.execute({
-      sql: "SELECT response FROM commands WHERE command = ? AND active = 1",
-      args: [input],
-    });
+    const result = await query(
+      "SELECT response FROM commands WHERE command = ? AND active = 1",
+      [input]
+    );
 
     const matched = result.rows.length > 0;
     const response = matched
@@ -89,12 +87,10 @@ export async function POST(request: NextRequest) {
 
     // Log input (fire and forget)
     const ipHash = await sha256(ip);
-    db.execute({
-      sql: "INSERT INTO input_log (id, input, matched, session_id, ip_hash) VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?)",
-      args: [input, matched ? 1 : 0, sessionId, ipHash],
-    }).catch(() => {
-      // Logging failure is non-critical
-    });
+    query(
+      "INSERT INTO input_log (id, input, matched, session_id, ip_hash) VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?)",
+      [input, matched ? 1 : 0, sessionId, ipHash]
+    ).catch(() => {});
 
     return NextResponse.json({ response, matched });
   } catch (error) {

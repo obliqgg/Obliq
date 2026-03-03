@@ -5,10 +5,8 @@ import { BOOT_SEQUENCE } from "@/lib/boot-sequence";
 import { BootLine, CommandResponse } from "@/lib/types";
 
 const CHAR_DELAY = 35;
-const DOT_DELAY = 60;
 const LINE_PAUSE_BASE = 250;
 const LINE_PAUSE_VARIANCE = 150;
-const INITIAL_DELAY = 600;
 const FINAL_PAUSE = 500;
 const STATUS_WORD_PAUSE = 100;
 const CURSOR_BLINK_MS = 530;
@@ -75,7 +73,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export default function TerminalPage() {
+function Terminal() {
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [currentTyping, setCurrentTyping] = useState<{
     text: string;
@@ -137,13 +135,11 @@ export default function TerminalPage() {
       const dotDelay = line.dotDelay ?? charDelay;
       let typed = "";
 
-      // Detect if this is a loading line (has dots followed by a status word)
       const dotMatch = line.text.match(/^(.+?)(\s)(\.{3,})(\s+)(\S+)$/);
 
       if (dotMatch) {
         const [, prefix, space1, dots, space2, statusWord] = dotMatch;
 
-        // Type the prefix
         for (const char of prefix + space1) {
           typed += char;
           setCurrentTyping({
@@ -155,7 +151,6 @@ export default function TerminalPage() {
           await sleep(charDelay);
         }
 
-        // Type the dots
         for (const char of dots) {
           typed += char;
           setCurrentTyping({
@@ -167,7 +162,6 @@ export default function TerminalPage() {
           await sleep(dotDelay);
         }
 
-        // Type the space before status word
         typed += space2;
         setCurrentTyping({
           text: typed,
@@ -176,10 +170,8 @@ export default function TerminalPage() {
         });
         scrollToBottom();
 
-        // Pause before status word
         await sleep(STATUS_WORD_PAUSE);
 
-        // Status word appears all at once
         typed += statusWord;
         setCurrentTyping({
           text: typed,
@@ -188,7 +180,6 @@ export default function TerminalPage() {
         });
         scrollToBottom();
       } else {
-        // Normal line: type character by character
         for (const char of line.text) {
           typed += char;
           setCurrentTyping({
@@ -201,7 +192,6 @@ export default function TerminalPage() {
         }
       }
 
-      // Commit the line
       setLines((prev) => [
         ...prev,
         {
@@ -215,7 +205,6 @@ export default function TerminalPage() {
     [scrollToBottom]
   );
 
-  // Type out a response string (for command responses)
   const typeResponse = useCallback(
     async (text: string): Promise<void> => {
       const responseLines = text.split("\n");
@@ -247,14 +236,12 @@ export default function TerminalPage() {
     [scrollToBottom]
   );
 
-  // Boot sequence
+  // Boot sequence — runs on mount
   useEffect(() => {
     if (bootRanRef.current) return;
     bootRanRef.current = true;
 
     (async () => {
-      await sleep(INITIAL_DELAY);
-
       for (let i = 0; i < BOOT_SEQUENCE.length; i++) {
         await typeLine(BOOT_SEQUENCE[i]);
         if (i < BOOT_SEQUENCE.length - 1 && BOOT_SEQUENCE[i].text !== "") {
@@ -267,8 +254,6 @@ export default function TerminalPage() {
       await sleep(FINAL_PAUSE);
       setShowCursor(true);
       setInteractive(true);
-
-      // Focus input after boot
       setTimeout(() => inputRef.current?.focus(), 50);
     })();
   }, [typeLine]);
@@ -281,7 +266,6 @@ export default function TerminalPage() {
     setShowCursor(false);
     setIsSubmitting(true);
 
-    // Add the user's input line to history
     setLines((prev) => [
       ...prev,
       { text: `> ${input}`, color: "#d0d0d0" },
@@ -300,10 +284,8 @@ export default function TerminalPage() {
       const data: CommandResponse = await res.json();
 
       if (data.matched) {
-        // Type out matched responses character by character
         await typeResponse(data.response);
       } else {
-        // Unmatched: instant display
         setLines((prev) => [...prev, { text: data.response }]);
       }
     } catch {
@@ -347,7 +329,6 @@ export default function TerminalPage() {
         }}
         className="terminal-content"
       >
-        {/* Rendered lines */}
         {lines.map((line, i) => (
           <div key={i} style={{ minHeight: "1.6em" }}>
             {line.text === "" ? (
@@ -362,7 +343,6 @@ export default function TerminalPage() {
           </div>
         ))}
 
-        {/* Currently typing line */}
         {currentTyping && (
           <div style={{ minHeight: "1.6em" }}>
             {renderHighlightedText(
@@ -373,7 +353,6 @@ export default function TerminalPage() {
           </div>
         )}
 
-        {/* Interactive prompt */}
         {interactive && !isSubmitting && (
           <div style={{ minHeight: "1.6em", display: "flex" }}>
             <span style={{ color: "#d0d0d0" }}>{">"}&nbsp;</span>
@@ -392,14 +371,12 @@ export default function TerminalPage() {
           </div>
         )}
 
-        {/* Waiting cursor during submission */}
         {isSubmitting && (
           <div style={{ minHeight: "1.6em" }}>
             <span style={{ color: "#d0d0d0" }}>&nbsp;</span>
           </div>
         )}
 
-        {/* Hidden input */}
         <input
           ref={inputRef}
           type="text"
@@ -434,6 +411,27 @@ export default function TerminalPage() {
           }
         }
       `}</style>
+    </div>
+  );
+}
+
+export default function Page() {
+  const [phase, setPhase] = useState<"video" | "terminal">("video");
+
+  return (
+    <div style={{ background: "#000", minHeight: "100vh" }}>
+      {phase === "video" ? (
+        <video
+          src="/glitch.mp4"
+          autoPlay
+          muted
+          playsInline
+          style={{ width: "100%", height: "100vh", objectFit: "cover" }}
+          onEnded={() => setPhase("terminal")}
+        />
+      ) : (
+        <Terminal />
+      )}
     </div>
   );
 }
