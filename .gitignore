@@ -1,0 +1,35 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+
+# env files
+.env*.local
+.env
+
+# turbo
+.turbo
+
+# local database
+local.db
+
+# internal docs
+/docs/
+/videos/
+/spec.md
+
+# cloudflare
+.open-next/
+.wrangler/
