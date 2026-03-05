@@ -242,9 +242,16 @@ function Terminal() {
     bootRanRef.current = true;
 
     (async () => {
-      for (let i = 0; i < BOOT_SEQUENCE.length; i++) {
-        await typeLine(BOOT_SEQUENCE[i]);
-        if (i < BOOT_SEQUENCE.length - 1 && BOOT_SEQUENCE[i].text !== "") {
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const timestamp = `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`;
+      const sequence = BOOT_SEQUENCE.map((line, idx) =>
+        idx === 0 ? { ...line, text: `[${timestamp}] ARCHON v3.1.0 // INIT` } : line
+      );
+
+      for (let i = 0; i < sequence.length; i++) {
+        await typeLine(sequence[i]);
+        if (i < sequence.length - 1 && sequence[i].text !== "") {
           await sleep(
             LINE_PAUSE_BASE + Math.random() * LINE_PAUSE_VARIANCE
           );
